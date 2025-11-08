@@ -9,8 +9,7 @@ st.title("La primera aplicacion con Streamlit de Hannah Hwang")
 nombre = st.text_input("Cual es tu nombre?")
 if st.button("Saludar!"):
     st.write(f"Hola {nombre}! Bienvenido a talento tech")
-
-
+   
 MODELOS = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']
 
 
@@ -25,7 +24,6 @@ def configurar_pagina():
         index = 0
     )
 
-
     return elegirModelo
 
 
@@ -33,19 +31,16 @@ def crear_usuario_groq():
     clave_secreta = st.secrets["CLAVE_API"]
     return Groq(api_key= clave_secreta)
 
-
 def configurar_modelo(cliente, modelo, mensajeDeEntrada):
     return cliente.chat.completions.create(
-        model=modelo,
-        messages=[{"role":"user", "content": mensajeDeEntrada}],
-        stream=False
+        model = modelo,
+        messages = [{"role":"user", "content": mensajeDeEntrada}],
+        stream = True
     )
-
 
 def inicializar_estado():
     if "mensajes" not in st.session_state:
         st.session_state.mensajes = []
-
 
 def actualizar_historial(rol, contenido, avatar):
     st.session_state.mensajes.append({"role": rol, "content": contenido, "avatar": avatar})
@@ -59,17 +54,32 @@ def area_chat():
     with contenedorDelChat: mostrar_historial()
 
 
+def generar_respuestas(chat_completo):
+    respuesta_completa = ""
+    for frase in chat_completo:
+        print(frase.choices[0].delta.content)
+        if frase.choices[0].delta.content:
+            respuesta_completa += frase.choices[0].delta.content
+            yield frase.choices[0].delta.content
+    return respuesta_completa
 
-clienteUsuario = crear_usuario_groq()
-inicializar_estado()
-modelo = configurar_pagina()
-area_chat()
-mensaje = st.chat_input("Escribi tu mensaje:")
+# Main - > Todas las funciones para correr el Chatbot
+def main ():
+    clienteUsuario = crear_usuario_groq()
+    inicializar_estado()
+    modelo = configurar_pagina()
+    area_chat() #Nuevo 
+    mensaje = st.chat_input("Escribi tu mensaje:")
 
-
-#-----Dentro del condicional-------------------------------------
-if mensaje:
-    actualizar_historial("user", mensaje, "😁")
-    chat_completo = configurar_modelo(clienteUsuario, modelo, mensaje)
-    actualizar_historial("assistant", chat_completo, "🤖")
-    st.rerun()
+    if mensaje:
+        actualizar_historial("user", mensaje, "😁")
+        chat_completo = configurar_modelo(clienteUsuario, modelo, mensaje)
+        if chat_completo:
+                with st.chat_message("assistant"):
+                    respuesta_completa = st.write_stream(generar_respuestas(chat_completo))
+                    actualizar_historial("assistant", respuesta_completa, "🤖")
+                    st.rerun()
+              
+        
+if __name__ == "__main__":
+    main()
